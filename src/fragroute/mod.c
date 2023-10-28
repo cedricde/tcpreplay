@@ -177,10 +177,11 @@ mod_close(void)
 {
     struct rule *rule;
 
-    TAILQ_FOREACH_REVERSE(rule, &rules, next, head)
-    {
+    while (!TAILQ_EMPTY(&rules)) {
+        rule = TAILQ_LAST(&rules, head);
         if (rule->mod->close != NULL)
             rule->data = rule->mod->close(rule->data);
         TAILQ_REMOVE(&rules, rule, next);
+        free(rule);
     }
 }

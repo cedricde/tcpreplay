@@ -33,12 +33,25 @@
 #include "mod.h"
 #include "pkt.h"
 
+static void
+fragroute_flush(fragroute_t *ctx)
+{
+    struct pkt *pkt;
+
+    while (!TAILQ_EMPTY(ctx->pktq)) {
+        pkt = TAILQ_FIRST(ctx->pktq);
+        TAILQ_REMOVE(ctx->pktq, pkt, pkt_next);
+        pkt_free(pkt);
+    }
+}
+
 void
 fragroute_close(fragroute_t *ctx)
 {
     assert(ctx);
     free(ctx->pktq);
     free(ctx);
+    mod_close();
     pkt_close();
 }
 
@@ -90,7 +103,7 @@ fragroute_process(fragroute_t *ctx, void *buf, size_t len)
 int
 fragroute_getfragment(fragroute_t *ctx, char **packet)
 {
-    static struct pkt *pkt = NULL;
+    struct pkt *pkt;
     static struct pkt *next = NULL;
     char *pkt_data = *packet;
     u_int32_t length;
@@ -109,9 +122,10 @@ fragroute_getfragment(fragroute_t *ctx, char **packet)
         /* return the original L2 header */
         memcpy(pkt_data, ctx->l2header, ctx->l2len);
         length = pkt->pkt_end - pkt->pkt_data;
-        pkt = next;
         return (int)length;
     }
+
+    fragroute_flush(ctx);
 
     return 0; // nothing
 }
